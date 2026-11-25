@@ -1,0 +1,138 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>QoS / QoE — Temperatura de CPU (Local vs. Nube)</title>
+  <style>
+    body { font-family: Arial, sans-serif; margin: 24px; background: #0f172a; color: #e2e8f0; }
+    h1 { margin-bottom: 6px; font-size: 1.5rem; }
+    .meta { color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
+    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px; }
+    .card h3 { margin: 0 0 8px; font-size: 0.9rem; color: #94a3b8; }
+    .val { font-size: 1.6rem; font-weight: bold; }
+    .ok { color: #4ade80; }
+    .warn { color: #f87171; }
+    table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }
+    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #334155; font-size: 0.92rem; }
+    th { background: #0f172a; color: #cbd5e1; }
+  </style>
+</head>
+<body>
+  <h1>Monitoreo Térmico de CPU — Comparativa QoS / QoE</h1>
+  <div class="meta" id="status">Cargando datos desde results/...</div>
+
+  <div class="grid" id="kpis"></div>
+
+  <h2>Resultados por Escenario y Arquitectura</h2>
+  <table>
+    <thead>
+      <tr>
+        <th>Arquitectura</th>
+        <th>Escenario / Fuente</th>
+        <th>Temp. CPU (°C)</th>
+        <th>Latencia Prom. (ms)</th>
+        <th>Jitter (ms)</th>
+        <th>Pérdida (%)</th>
+        <th>Alertas Tardías</th>
+        <th>QoE (0–100)</th>
+      </tr>
+    </thead>
+    <tbody id="rows"></tbody>
+  </table>
+
+  <script>
+    async function loadData() {
+      const statusEl = document.getElementById("status");
+      const kpisEl = document.getElementById("kpis");
+      const tbodyEl = document.getElementById("rows");
+
+      let liveData = null;
+      let simData = null;
+
+      try {
+        const resLive = await fetch("results/cpu_qos_qoe.json?t=" + Date.now());
+        if (resLive.ok) liveData = await resLive.json();
+      } catch (_) {}
+
+      try {
+        const resSim = await fetch("results/simulation_summary.json?t=" + Date.now());
+        if (resSim.ok) simData = await resSim.json();
+      } catch (_) {}
+
+      const rows = [];
+      let latestTemp = null;
+
+      if (liveData && typeof liveData === "object") {
+        for (const [arch, m] of Object.entries(liveData)) {
+          if (m.last_cpu_temp_c != null) latestTemp = m.last_cpu_temp_c;
+          rows.push({
+            arch: arch.toUpperCase(),
+            scenario: "Captura en vivo (MQTT)",
+            temp: m.last_cpu_temp_c ?? "-",
+            lat: m.avg_latency_ms,
+            jitter: m.jitter_ms,
+            loss: m.packet_loss_pct,
+            delayed: m.alerts_delayed,
+            qoe: m.qoe_score
+          });
+        }
+      }
+
+      if (simData && Array.isArray(simData.simulated_scenarios)) {
+        for (const s of simData.simulated_scenarios) {
+          if (latestTemp == null) latestTemp = s.avg_cpu_temp_c;
+          rows.push({
+            arch: s.architecture.toUpperCase(),
+            scenario: s.scenario,
+            temp: `${s.avg_cpu_temp_c} (máx ${s.max_cpu_temp_c})`,
+            lat: s.avg_latency_ms,
+            jitter: s.jitter_ms,
+            loss: s.packet_loss_pct,
+            delayed: s.delayed_alerts,
+            qoe: s.qoe_score
+          });
+        }
+      }
+
+      if (rows.length === 0) {
+        statusEl.textContent = "Aún no hay archivos en results/. Ejecuta sim_qos_qoe.py o los scripts de telemetría.";
+        return;
+      }
+
+      const localRows = rows.filter(r => r.arch === "LOCAL");
+      const cloudRows = rows.filter(r => r.arch === "CLOUD");
+      const avgLocalQoe = localRows.length ? (localRows.reduce((a, b) => a + b.qoe, 0) / localRows.length).toFixed(1) : "-";
+      const avgCloudQoe = cloudRows.length ? (cloudRows.reduce((a, b) => a + b.qoe, 0) / cloudRows.length).toFixed(1) : "-";
+      const tempNum = typeof latestTemp === "number" ? latestTemp : parseFloat(latestTemp);
+      const isCrit = !Number.isNaN(tempNum) && tempNum >= 85;
+
+      kpisEl.innerHTML = `
+        <div class="card"><h3>Temperatura CPU</h3><div class="val ${isCrit ? "warn" : "ok"}">${latestTemp ?? "-"} °C</div></div>
+        <div class="card"><h3>Estado Térmico</h3><div class="val ${isCrit ? "warn" : "ok"}">${isCrit ? "CRÍTICO (>= 85 °C)" : "NORMAL"}</div></div>
+        <div class="card"><h3>QoE Promedio LOCAL</h3><div class="val ok">${avgLocalQoe}</div></div>
+        <div class="card"><h3>QoE Promedio NUBE</h3><div class="val">${avgCloudQoe}</div></div>
+      `;
+
+      tbodyEl.innerHTML = rows.map(r => `
+        <tr>
+          <td><strong>${r.arch}</strong></td>
+          <td>${r.scenario}</td>
+          <td>${r.temp}</td>
+          <td>${r.lat} ms</td>
+          <td>${r.jitter} ms</td>
+          <td>${r.loss}%</td>
+          <td>${r.delayed}</td>
+          <td><strong>${r.qoe}</strong></td>
+        </tr>
+      `).join("");
+
+      statusEl.textContent = "Actualizado: " + new Date().toLocaleTimeString();
+    }
+
+    loadData();
+    setInterval(loadData, 2000);
+  </script>
+</body>
+</html>
