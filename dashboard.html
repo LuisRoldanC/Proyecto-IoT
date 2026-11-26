@@ -73,6 +73,12 @@
     tbody tr:hover { background: #f7faff; }
     .arch-tag { display: inline-block; border-radius: 5px; padding: 4px 7px; background: #e9f4f0; color: #276b57; font-size: .69rem; font-weight: 750; }
     .arch-tag.cloud { background: #edf1fb; color: #465fa5; }
+        .sla-tag { display: inline-block; border-radius: 5px; padding: 4px 7px; font-size: .69rem; font-weight: 750; }
+    .sla-tag.ok { background: #e9f4f0; color: #276b57; }
+    .sla-tag.fail { background: #fdecee; color: var(--red); }
+    .chart-panel { margin-bottom: 16px; }
+    .chart-svg { width: 100%; height: 210px; display: block; }
+    .chart-meta { display: flex; justify-content: space-between; margin-top: 8px; color: var(--muted); font-size: .75rem; }
     .status-line { justify-content: flex-start; margin: 17px 2px 0; color: var(--muted); font-size: .77rem; }
     .status-error { color: var(--amber); }
     .empty { padding: 28px 14px; color: var(--muted); text-align: center; font-size: .85rem; }
@@ -160,6 +166,7 @@
                 <th>Pérdida</th>
                 <th>Alertas tardías</th>
                 <th>QoE</th>
+                <th>SLA</th>
               </tr>
             </thead>
             <tbody id="rows"></tbody>
@@ -171,6 +178,16 @@
         </div>
       </section>
     </div>
+        <section class="panel chart-panel" aria-labelledby="live-chart-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="live-chart-title">Historial térmico en vivo (MQTT)</h2>
+          <p class="section-caption">Últimas lecturas recibidas · línea punteada: umbral crítico 85 °C</p>
+        </div>
+        <span class="pill" id="live-chart-badge">Sin datos</span>
+      </div>
+      <div id="live-chart"></div>
+    </section>
     <footer>Los datos simulados son reproducibles y se actualizan al ejecutar <code>sim_qos_qoe.py</code>.</footer>
   </main>
 
@@ -206,7 +223,6 @@
     function renderKpis(liveData, simulated) {
       const kpis = document.getElementById("kpis");
       kpis.replaceChildren();
-
       const liveTemps = Object.values(liveData || {})
         .map(metric => number(metric && metric.last_cpu_temp_c))
         .filter(value => value !== null);
@@ -219,10 +235,11 @@
       const cloud = rows.filter(row => row.arch === "cloud" && row.qoe !== null);
       const average = list => list.length ? list.reduce((sum, row) => sum + row.qoe, 0) / list.length : null;
       const thermalTone = highestTemp >= 85 ? "critical" : highestTemp >= 75 ? "warning" : "good";
+      const liveTone = liveTemp === null ? "" : liveTemp >= 85 ? "critical" : liveTemp >= 75 ? "warning" : "good";
 
       kpis.append(
         makeCard("Temperatura CPU en vivo", liveTemp === null ? "—" : `${format(liveTemp)} °C`,
-          liveTemp === null ? "Sin captura MQTT disponible" : "Última lectura recibida", liveTemp === null ? "" : thermalTone),
+          liveTemp === null ? "Sin captura MQTT disponible" : "Última lectura recibida", liveTone),
         makeCard("Pico térmico observado", highestTemp ? `${format(highestTemp)} °C` : "—",
           highestTemp >= 85 ? "Umbral crítico: 85 °C" : "Dentro del umbral de 85 °C", thermalTone),
         makeCard("QoE promedio · local", format(average(local)),
@@ -289,6 +306,13 @@
         tr.append(element("td", "", row.delayed === null ? "—" : String(row.delayed)));
         const qoe = element("td", row.qoe !== null && row.qoe < 40 ? "critical" : "", format(row.qoe, 2));
         tr.append(qoe);
+        const slaOk = row.lat !== null && row.lat <= 100
+          && row.jitter !== null && row.jitter <= 30
+          && row.loss !== null && row.loss <= 1
+          && (row.delayed === null || row.delayed === 0);
+        const slaCell = element("td");
+        slaCell.append(element("span", `sla-tag ${slaOk ? "ok" : "fail"}`, slaOk ? "Cumple" : "No cumple"));
+        tr.append(slaCell);
         tbody.append(tr);
       }
     }
@@ -302,11 +326,13 @@
           arch,
           scenarioKey: "",
           scenario: "Captura en vivo (MQTT)",
-          temp: `${format(metric.last_cpu_temp_c)} / —`,
+          temp: metric.avg_cpu_temp_c !== undefined && metric.max_cpu_temp_c !== undefined
+            ? `${format(metric.avg_cpu_temp_c)} / ${format(metric.max_cpu_temp_c)} °C`
+            : `${format(metric.last_cpu_temp_c)} / —`,
           lat: number(metric.avg_latency_ms),
           jitter: number(metric.jitter_ms),
           loss: number(metric.packet_loss_pct),
-          delayed: number(metric.alerts_delayed),
+          delayed: number(metric.delayed_alerts ?? metric.alerts_delayed),
           qoe: number(metric.qoe_score)
         });
       }
@@ -331,6 +357,53 @@
       }
     }
 
+        function renderLiveChart(liveData) {
+      const container = document.getElementById("live-chart");
+      const badge = document.getElementById("live-chart-badge");
+      container.replaceChildren();
+
+      const entries = Object.entries(liveData || {})
+        .filter(([, m]) => m && Array.isArray(m.history) && m.history.length > 0);
+
+      if (!entries.length) {
+        badge.textContent = "Sin datos";
+        container.append(element("p", "empty", "Ejecuta subscriber.py y publisher.py para ver la evolución térmica en vivo."));
+        return;
+      }
+
+      const [arch, metric] = entries[entries.length - 1];
+      const history = metric.history;
+      badge.textContent = `${arch === "cloud" ? "NUBE" : "LOCAL"} · ${history.length} lecturas`;
+
+      const W = 760, H = 190, padL = 42, padR = 16, padT = 16, padB = 26;
+      const temps = history.map(h => Number(h.temp_c));
+      const minY = Math.min(35, Math.floor(Math.min(...temps) - 5));
+      const maxY = Math.max(95, Math.ceil(Math.max(...temps) + 5));
+      const xOf = i => padL + (history.length === 1 ? (W - padL - padR) / 2 : (i / (history.length - 1)) * (W - padL - padR));
+      const yOf = v => padT + ((maxY - v) / (maxY - minY)) * (H - padT - padB);
+
+      const points = history.map((h, i) => `${xOf(i).toFixed(1)},${yOf(h.temp_c).toFixed(1)}`).join(" ");
+      const y85 = yOf(85).toFixed(1);
+      const stroke = arch === "cloud" ? "#526fc0" : "#1677b8";
+
+      container.innerHTML = `
+        <svg class="chart-svg" viewBox="0 0 ${W} ${H}" role="img" aria-label="Gráfica de temperatura CPU en vivo">
+          <line x1="${padL}" y1="${padT}" x2="${padL}" y2="${H - padB}" stroke="#dce5ef" />
+          <line x1="${padL}" y1="${H - padB}" x2="${W - padR}" y2="${H - padB}" stroke="#dce5ef" />
+          <line x1="${padL}" y1="${y85}" x2="${W - padR}" y2="${y85}" stroke="#b42332" stroke-dasharray="5 4" stroke-width="1.2" />
+          <text x="${padL - 6}" y="${y85}" text-anchor="end" dominant-baseline="middle" fill="#b42332" font-size="10">85°C</text>
+          <text x="${padL - 6}" y="${padT + 4}" text-anchor="end" fill="#63748b" font-size="10">${maxY}°C</text>
+          <text x="${padL - 6}" y="${H - padB}" text-anchor="end" fill="#63748b" font-size="10">${minY}°C</text>
+          <polyline fill="none" stroke="${stroke}" stroke-width="2.2" stroke-linejoin="round" stroke-linecap="round" points="${points}" />
+          ${history.map((h, i) => `<circle cx="${xOf(i).toFixed(1)}" cy="${yOf(h.temp_c).toFixed(1)}" r="2.8" fill="${h.temp_c >= 85 ? "#b42332" : stroke}"><title>${h.ts}: ${h.temp_c} °C (${h.latency_ms} ms)</title></circle>`).join("")}
+        </svg>
+        <div class="chart-meta">
+          <span>Inicio: ${history[0].ts}</span>
+          <span>Mín: ${Math.min(...temps).toFixed(1)} °C · Máx: ${Math.max(...temps).toFixed(1)} °C</span>
+          <span>Última: ${history[history.length - 1].ts}</span>
+        </div>
+      `;
+    }
     async function fetchJson(path) {
       const response = await fetch(`${path}?t=${Date.now()}`, { cache: "no-store" });
       if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
@@ -356,6 +429,9 @@
         ? simulationData.simulated_scenarios : []);
       renderComparison();
       renderTable();
+      renderComparison();
+      renderTable();
+      renderLiveChart(liveData);
 
       const failures = [];
       if (liveResult.status === "rejected") failures.push("captura en vivo no disponible");
