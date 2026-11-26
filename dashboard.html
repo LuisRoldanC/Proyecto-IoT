@@ -3,136 +3,378 @@
 <head>
   <meta charset="UTF-8" />
   <meta name="viewport" content="width=device-width, initial-scale=1.0" />
-  <title>QoS / QoE — Temperatura de CPU (Local vs. Nube)</title>
+  <meta name="theme-color" content="#f3f6fb" />
+  <title>QoS / QoE | Monitor térmico de CPU</title>
   <style>
-    body { font-family: Arial, sans-serif; margin: 24px; background: #0f172a; color: #e2e8f0; }
-    h1 { margin-bottom: 6px; font-size: 1.5rem; }
-    .meta { color: #94a3b8; font-size: 0.9rem; margin-bottom: 20px; }
-    .grid { display: grid; grid-template-columns: repeat(auto-fit, minmax(220px, 1fr)); gap: 14px; margin-bottom: 24px; }
-    .card { background: #1e293b; border: 1px solid #334155; border-radius: 10px; padding: 16px; }
-    .card h3 { margin: 0 0 8px; font-size: 0.9rem; color: #94a3b8; }
-    .val { font-size: 1.6rem; font-weight: bold; }
-    .ok { color: #4ade80; }
-    .warn { color: #f87171; }
-    table { width: 100%; border-collapse: collapse; background: #1e293b; border-radius: 10px; overflow: hidden; }
-    th, td { padding: 12px 14px; text-align: left; border-bottom: 1px solid #334155; font-size: 0.92rem; }
-    th { background: #0f172a; color: #cbd5e1; }
+    :root {
+      color-scheme: light;
+      --bg: #f3f6fb;
+      --panel: #ffffff;
+      --panel-soft: #edf3fa;
+      --border: #dce5ef;
+      --text: #172b4d;
+      --muted: #63748b;
+      --accent: #1677b8;
+      --blue: #526fc0;
+      --amber: #945900;
+      --red: #b42332;
+      font-family: Inter, ui-sans-serif, system-ui, -apple-system, BlinkMacSystemFont, "Segoe UI", sans-serif;
+    }
+
+    * { box-sizing: border-box; }
+    body { margin: 0; min-height: 100vh; background: radial-gradient(ellipse at 90% 0%, #e8f0fa 0, var(--bg) 38rem); color: var(--text); }
+    button, select { font: inherit; }
+    .shell { width: min(1180px, calc(100% - 40px)); margin: 0 auto; padding: 38px 0 56px; }
+    .topbar, .heading, .section-heading, .toolbar, .status-line { display: flex; align-items: center; justify-content: space-between; gap: 16px; }
+    .topbar { margin-bottom: 48px; }
+    .brand { display: flex; align-items: center; gap: 11px; font-size: .88rem; font-weight: 700; letter-spacing: .04em; }
+    .brand-mark { display: grid; width: 35px; height: 35px; place-items: center; border: 1px solid #c9d9eb; border-radius: 9px; background: #e8f1fb; color: #28649c; }
+    .live-badge, .pill { display: inline-flex; align-items: center; gap: 8px; border: 1px solid var(--border); border-radius: 99px; padding: 7px 12px; color: var(--muted); font-size: .78rem; }
+    .live-badge { background: #ffffffb8; }
+    .dot { width: 7px; height: 7px; border-radius: 50%; background: #27866e; }
+    .heading { align-items: flex-end; margin-bottom: 27px; }
+    .eyebrow { margin: 0 0 10px; color: #28649c; font-size: .73rem; font-weight: 750; letter-spacing: .12em; text-transform: uppercase; }
+    h1 { margin: 0; font-size: clamp(1.8rem, 4vw, 2.7rem); letter-spacing: -.045em; line-height: 1.12; }
+    .subtitle { margin: 12px 0 0; color: var(--muted); font-size: .96rem; }
+    .refresh-button { display: inline-flex; align-items: center; gap: 9px; border: 1px solid #cbd9e8; border-radius: 8px; background: #fff; color: #254c75; padding: 10px 14px; cursor: pointer; box-shadow: 0 1px 2px #172b4d0a; transition: background .18s, border-color .18s, box-shadow .18s; }
+    .refresh-button:hover { border-color: #8eabc9; background: #f6f9fd; box-shadow: 0 2px 6px #172b4d12; }
+    .refresh-button:focus-visible, select:focus-visible { outline: 2px solid #397db7; outline-offset: 3px; }
+    .grid { display: grid; grid-template-columns: repeat(4, minmax(0, 1fr)); gap: 14px; margin-bottom: 24px; }
+    .card, .panel { border: 1px solid var(--border); border-radius: 12px; background: var(--panel); box-shadow: 0 2px 8px #1c35500a, 0 10px 24px #1c355008; }
+    .card { min-height: 139px; padding: 19px; }
+    .card-label { margin: 0; color: var(--muted); font-size: .82rem; }
+    .card-value { margin: 14px 0 7px; font-size: 1.85rem; font-weight: 750; letter-spacing: -.04em; }
+    .card-note { margin: 0; color: #718198; font-size: .76rem; }
+    .good { color: #24765f; }
+    .warning { color: var(--amber); }
+    .critical { color: var(--red); }
+    .content-grid { display: grid; grid-template-columns: 1fr 1.55fr; gap: 16px; margin-bottom: 16px; }
+    .panel { padding: 21px; min-width: 0; }
+    .section-heading { margin-bottom: 19px; }
+    h2 { margin: 0; font-size: 1rem; letter-spacing: -.015em; }
+    .section-caption { margin: 6px 0 0; color: var(--muted); font-size: .8rem; }
+    .comparison { display: grid; gap: 17px; }
+    .scenario-title { display: flex; align-items: center; justify-content: space-between; margin-bottom: 9px; font-size: .84rem; font-weight: 650; }
+    .scenario-title span:last-child { color: var(--muted); font-size: .72rem; font-weight: 500; }
+    .bar-row { display: grid; grid-template-columns: 49px 1fr 39px; align-items: center; gap: 9px; margin-top: 6px; color: var(--muted); font-size: .72rem; }
+    .track { height: 7px; overflow: hidden; border-radius: 99px; background: #e7edf5; }
+    .bar { height: 100%; border-radius: inherit; background: var(--accent); transition: width .3s ease; }
+    .bar.cloud { background: var(--blue); }
+    .bar-score { text-align: right; color: var(--text); font-variant-numeric: tabular-nums; }
+    .toolbar { justify-content: flex-end; margin: 0 0 14px; }
+    .toolbar label { display: flex; align-items: center; gap: 9px; color: var(--muted); font-size: .78rem; }
+    select { border: 1px solid #d2deeb; border-radius: 7px; background: #fff; color: var(--text); padding: 8px 30px 8px 10px; }
+    .table-wrap { overflow-x: auto; border: 1px solid var(--border); border-radius: 9px; }
+    table { width: 100%; min-width: 810px; border-collapse: collapse; text-align: left; }
+    th, td { padding: 12px 13px; border-bottom: 1px solid #e8edf3; font-size: .79rem; white-space: nowrap; }
+    th { background: #f5f8fc; color: #5d6e84; font-size: .7rem; font-weight: 700; letter-spacing: .035em; text-transform: uppercase; }
+    td { color: #34445a; font-variant-numeric: tabular-nums; }
+    tbody tr:last-child td { border-bottom: 0; }
+    tbody tr:hover { background: #f7faff; }
+    .arch-tag { display: inline-block; border-radius: 5px; padding: 4px 7px; background: #e9f4f0; color: #276b57; font-size: .69rem; font-weight: 750; }
+    .arch-tag.cloud { background: #edf1fb; color: #465fa5; }
+    .status-line { justify-content: flex-start; margin: 17px 2px 0; color: var(--muted); font-size: .77rem; }
+    .status-error { color: var(--amber); }
+    .empty { padding: 28px 14px; color: var(--muted); text-align: center; font-size: .85rem; }
+    footer { margin-top: 23px; color: #718198; font-size: .74rem; }
+    footer code { border: 1px solid #dce5ef; border-radius: 4px; background: #fff; color: #405a78; padding: 2px 5px; }
+    @media (max-width: 850px) {
+      .grid { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+      .content-grid { grid-template-columns: 1fr; }
+    }
+    @media (max-width: 540px) {
+      .shell { width: min(100% - 26px, 1180px); padding-top: 23px; }
+      .topbar { margin-bottom: 34px; }
+      .heading { align-items: flex-start; flex-direction: column; }
+      .refresh-button { align-self: stretch; justify-content: center; }
+      .grid { gap: 9px; }
+      .card { min-height: 126px; padding: 14px; }
+      .card-value { font-size: 1.5rem; }
+      .panel { padding: 16px; }
+      .toolbar { justify-content: flex-start; }
+      .status-line { align-items: flex-start; }
+    }
+    @media (prefers-reduced-motion: reduce) {
+      *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
+    }
   </style>
 </head>
 <body>
-  <h1>Monitoreo Térmico de CPU — Comparativa QoS / QoE</h1>
-  <div class="meta" id="status">Cargando datos desde results/...</div>
+  <main class="shell">
+    <div class="topbar">
+      <div class="brand"><span class="brand-mark" aria-hidden="true">◈</span> OBSERVABILIDAD IoT</div>
+      <span class="live-badge"><span class="dot" aria-hidden="true"></span> Monitor QoS / QoE</span>
+    </div>
 
-  <div class="grid" id="kpis"></div>
+    <header class="heading">
+      <div>
+        <p class="eyebrow">Rendimiento de infraestructura</p>
+        <h1>Monitoreo térmico de CPU</h1>
+        <p class="subtitle">Comparativa de procesamiento local y en la nube</p>
+      </div>
+      <button class="refresh-button" id="refresh" type="button" aria-label="Actualizar datos">
+        <span aria-hidden="true">↻</span> Actualizar
+      </button>
+    </header>
 
-  <h2>Resultados por Escenario y Arquitectura</h2>
-  <table>
-    <thead>
-      <tr>
-        <th>Arquitectura</th>
-        <th>Escenario / Fuente</th>
-        <th>Temp. CPU (°C)</th>
-        <th>Latencia Prom. (ms)</th>
-        <th>Jitter (ms)</th>
-        <th>Pérdida (%)</th>
-        <th>Alertas Tardías</th>
-        <th>QoE (0–100)</th>
-      </tr>
-    </thead>
-    <tbody id="rows"></tbody>
-  </table>
+    <section class="grid" id="kpis" aria-label="Indicadores principales"></section>
+
+    <div class="content-grid">
+      <section class="panel" aria-labelledby="comparison-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="comparison-title">Calidad de experiencia</h2>
+            <p class="section-caption">Puntuación QoE por escenario (0–100)</p>
+          </div>
+          <span class="pill">LOCAL / NUBE</span>
+        </div>
+        <div class="comparison" id="comparison"></div>
+      </section>
+
+      <section class="panel" aria-labelledby="results-title">
+        <div class="section-heading">
+          <div>
+            <h2 id="results-title">Detalle de resultados</h2>
+            <p class="section-caption">Métricas por arquitectura y escenario</p>
+          </div>
+        </div>
+        <div class="toolbar">
+          <label for="scenario-filter">Escenario
+            <select id="scenario-filter">
+              <option value="all">Todos</option>
+              <option value="normal">Normal</option>
+              <option value="estres_cpu">Estrés de CPU</option>
+              <option value="congestion_red">Congestión de red</option>
+            </select>
+          </label>
+        </div>
+        <div class="table-wrap">
+          <table>
+            <thead>
+              <tr>
+                <th>Arquitectura</th>
+                <th>Escenario / fuente</th>
+                <th>CPU °C (prom. / máx.)</th>
+                <th>Latencia</th>
+                <th>Jitter</th>
+                <th>Pérdida</th>
+                <th>Alertas tardías</th>
+                <th>QoE</th>
+              </tr>
+            </thead>
+            <tbody id="rows"></tbody>
+          </table>
+          <div class="empty" id="empty" hidden>No hay resultados para este escenario.</div>
+        </div>
+        <div class="status-line" id="status" role="status" aria-live="polite">
+          <span class="dot" aria-hidden="true"></span> Cargando resultados…
+        </div>
+      </section>
+    </div>
+    <footer>Los datos simulados son reproducibles y se actualizan al ejecutar <code>sim_qos_qoe.py</code>.</footer>
+  </main>
 
   <script>
-    async function loadData() {
-      const statusEl = document.getElementById("status");
-      const kpisEl = document.getElementById("kpis");
-      const tbodyEl = document.getElementById("rows");
+    const number = value => value !== null && value !== undefined && value !== ""
+      && Number.isFinite(Number(value)) ? Number(value) : null;
+    const format = (value, digits = 1) => {
+      const parsed = number(value);
+      return parsed === null ? "—" : parsed.toFixed(digits);
+    };
+    const scenarioNames = {
+      normal: "Normal",
+      estres_cpu: "Estrés de CPU",
+      congestion_red: "Congestión de red"
+    };
+    let rows = [];
 
-      let liveData = null;
-      let simData = null;
+    function element(tag, className, text) {
+      const node = document.createElement(tag);
+      if (className) node.className = className;
+      if (text !== undefined && text !== null) node.textContent = text;
+      return node;
+    }
 
-      try {
-        const resLive = await fetch("results/cpu_qos_qoe.json?t=" + Date.now());
-        if (resLive.ok) liveData = await resLive.json();
-      } catch (_) {}
+    function makeCard(label, value, note, tone) {
+      const card = element("article", "card");
+      card.append(element("p", "card-label", label));
+      card.append(element("p", `card-value ${tone || ""}`, value));
+      card.append(element("p", "card-note", note));
+      return card;
+    }
 
-      try {
-        const resSim = await fetch("results/simulation_summary.json?t=" + Date.now());
-        if (resSim.ok) simData = await resSim.json();
-      } catch (_) {}
+    function renderKpis(liveData, simulated) {
+      const kpis = document.getElementById("kpis");
+      kpis.replaceChildren();
 
-      const rows = [];
-      let latestTemp = null;
+      const liveTemps = Object.values(liveData || {})
+        .map(metric => number(metric && metric.last_cpu_temp_c))
+        .filter(value => value !== null);
+      const simulatedTemps = simulated
+        .map(item => number(item.max_cpu_temp_c) ?? number(item.avg_cpu_temp_c))
+        .filter(value => value !== null);
+      const highestTemp = Math.max(...liveTemps, ...simulatedTemps, 0);
+      const liveTemp = liveTemps.length ? liveTemps[liveTemps.length - 1] : null;
+      const local = rows.filter(row => row.arch === "local" && row.qoe !== null);
+      const cloud = rows.filter(row => row.arch === "cloud" && row.qoe !== null);
+      const average = list => list.length ? list.reduce((sum, row) => sum + row.qoe, 0) / list.length : null;
+      const thermalTone = highestTemp >= 85 ? "critical" : highestTemp >= 75 ? "warning" : "good";
 
-      if (liveData && typeof liveData === "object") {
-        for (const [arch, m] of Object.entries(liveData)) {
-          if (m.last_cpu_temp_c != null) latestTemp = m.last_cpu_temp_c;
-          rows.push({
-            arch: arch.toUpperCase(),
-            scenario: "Captura en vivo (MQTT)",
-            temp: m.last_cpu_temp_c ?? "-",
-            lat: m.avg_latency_ms,
-            jitter: m.jitter_ms,
-            loss: m.packet_loss_pct,
-            delayed: m.alerts_delayed,
-            qoe: m.qoe_score
-          });
-        }
-      }
+      kpis.append(
+        makeCard("Temperatura CPU en vivo", liveTemp === null ? "—" : `${format(liveTemp)} °C`,
+          liveTemp === null ? "Sin captura MQTT disponible" : "Última lectura recibida", liveTemp === null ? "" : thermalTone),
+        makeCard("Pico térmico observado", highestTemp ? `${format(highestTemp)} °C` : "—",
+          highestTemp >= 85 ? "Umbral crítico: 85 °C" : "Dentro del umbral de 85 °C", thermalTone),
+        makeCard("QoE promedio · local", format(average(local)),
+          `${local.length} resultado${local.length === 1 ? "" : "s"}`, "good"),
+        makeCard("QoE promedio · nube", format(average(cloud)),
+          `${cloud.length} resultado${cloud.length === 1 ? "" : "s"}`, "")
+      );
+    }
 
-      if (simData && Array.isArray(simData.simulated_scenarios)) {
-        for (const s of simData.simulated_scenarios) {
-          if (latestTemp == null) latestTemp = s.avg_cpu_temp_c;
-          rows.push({
-            arch: s.architecture.toUpperCase(),
-            scenario: s.scenario,
-            temp: `${s.avg_cpu_temp_c} (máx ${s.max_cpu_temp_c})`,
-            lat: s.avg_latency_ms,
-            jitter: s.jitter_ms,
-            loss: s.packet_loss_pct,
-            delayed: s.delayed_alerts,
-            qoe: s.qoe_score
-          });
-        }
-      }
-
-      if (rows.length === 0) {
-        statusEl.textContent = "Aún no hay archivos en results/. Ejecuta sim_qos_qoe.py o los scripts de telemetría.";
+    function renderComparison() {
+      const container = document.getElementById("comparison");
+      container.replaceChildren();
+      const scenarios = [...new Set(rows.filter(row => row.scenarioKey).map(row => row.scenarioKey))];
+      if (!scenarios.length) {
+        container.append(element("p", "empty", "No hay datos simulados para comparar."));
         return;
       }
 
-      const localRows = rows.filter(r => r.arch === "LOCAL");
-      const cloudRows = rows.filter(r => r.arch === "CLOUD");
-      const avgLocalQoe = localRows.length ? (localRows.reduce((a, b) => a + b.qoe, 0) / localRows.length).toFixed(1) : "-";
-      const avgCloudQoe = cloudRows.length ? (cloudRows.reduce((a, b) => a + b.qoe, 0) / cloudRows.length).toFixed(1) : "-";
-      const tempNum = typeof latestTemp === "number" ? latestTemp : parseFloat(latestTemp);
-      const isCrit = !Number.isNaN(tempNum) && tempNum >= 85;
-
-      kpisEl.innerHTML = `
-        <div class="card"><h3>Temperatura CPU</h3><div class="val ${isCrit ? "warn" : "ok"}">${latestTemp ?? "-"} °C</div></div>
-        <div class="card"><h3>Estado Térmico</h3><div class="val ${isCrit ? "warn" : "ok"}">${isCrit ? "CRÍTICO (>= 85 °C)" : "NORMAL"}</div></div>
-        <div class="card"><h3>QoE Promedio LOCAL</h3><div class="val ok">${avgLocalQoe}</div></div>
-        <div class="card"><h3>QoE Promedio NUBE</h3><div class="val">${avgCloudQoe}</div></div>
-      `;
-
-      tbodyEl.innerHTML = rows.map(r => `
-        <tr>
-          <td><strong>${r.arch}</strong></td>
-          <td>${r.scenario}</td>
-          <td>${r.temp}</td>
-          <td>${r.lat} ms</td>
-          <td>${r.jitter} ms</td>
-          <td>${r.loss}%</td>
-          <td>${r.delayed}</td>
-          <td><strong>${r.qoe}</strong></td>
-        </tr>
-      `).join("");
-
-      statusEl.textContent = "Actualizado: " + new Date().toLocaleTimeString();
+      for (const scenario of scenarios) {
+        const group = element("div", "scenario");
+        const title = element("div", "scenario-title");
+        title.append(element("span", "", scenarioNames[scenario] || scenario));
+        title.append(element("span", "", "QoE"));
+        group.append(title);
+        for (const arch of ["local", "cloud"]) {
+          const result = rows.find(row => row.scenarioKey === scenario && row.arch === arch);
+          const score = result ? result.qoe : null;
+          const line = element("div", "bar-row");
+          line.append(element("span", "", arch === "local" ? "Local" : "Nube"));
+          const track = element("div", "track");
+          track.setAttribute("role", "progressbar");
+          track.setAttribute("aria-label", `QoE ${arch === "local" ? "local" : "nube"}: ${format(score, 2)}`);
+          track.setAttribute("aria-valuemin", "0");
+          track.setAttribute("aria-valuemax", "100");
+          track.setAttribute("aria-valuenow", score === null ? "0" : String(score));
+          const bar = element("div", `bar${arch === "cloud" ? " cloud" : ""}`);
+          bar.style.width = `${Math.max(0, Math.min(100, score === null ? 0 : score))}%`;
+          track.append(bar);
+          line.append(track);
+          line.append(element("span", "bar-score", format(score)));
+          group.append(line);
+        }
+        container.append(group);
+      }
     }
 
+    function renderTable() {
+      const selected = document.getElementById("scenario-filter").value;
+      const filtered = rows.filter(row => selected === "all" || row.scenarioKey === selected);
+      const tbody = document.getElementById("rows");
+      tbody.replaceChildren();
+      document.getElementById("empty").hidden = filtered.length !== 0;
+
+      for (const row of filtered) {
+        const tr = document.createElement("tr");
+        const arch = element("td");
+        arch.append(element("span", `arch-tag${row.arch === "cloud" ? " cloud" : ""}`, row.arch === "cloud" ? "NUBE" : "LOCAL"));
+        tr.append(arch);
+        tr.append(element("td", "", row.scenario));
+        tr.append(element("td", "", row.temp));
+        tr.append(element("td", "", `${format(row.lat)} ms`));
+        tr.append(element("td", "", `${format(row.jitter)} ms`));
+        tr.append(element("td", "", `${format(row.loss)}%`));
+        tr.append(element("td", "", row.delayed === null ? "—" : String(row.delayed)));
+        const qoe = element("td", row.qoe !== null && row.qoe < 40 ? "critical" : "", format(row.qoe, 2));
+        tr.append(qoe);
+        tbody.append(tr);
+      }
+    }
+
+    function addLiveRows(data) {
+      if (!data || typeof data !== "object" || Array.isArray(data)) return;
+      for (const [architecture, metric] of Object.entries(data)) {
+        if (!metric || typeof metric !== "object") continue;
+        const arch = architecture.toLowerCase();
+        rows.push({
+          arch,
+          scenarioKey: "",
+          scenario: "Captura en vivo (MQTT)",
+          temp: `${format(metric.last_cpu_temp_c)} / —`,
+          lat: number(metric.avg_latency_ms),
+          jitter: number(metric.jitter_ms),
+          loss: number(metric.packet_loss_pct),
+          delayed: number(metric.alerts_delayed),
+          qoe: number(metric.qoe_score)
+        });
+      }
+    }
+
+    function addSimulationRows(data) {
+      if (!data || !Array.isArray(data.simulated_scenarios)) return;
+      for (const item of data.simulated_scenarios) {
+        if (!item || typeof item !== "object") continue;
+        const scenarioKey = String(item.scenario || "");
+        rows.push({
+          arch: String(item.architecture || "").toLowerCase(),
+          scenarioKey,
+          scenario: scenarioNames[scenarioKey] || scenarioKey || "Escenario",
+          temp: `${format(item.avg_cpu_temp_c)} / ${format(item.max_cpu_temp_c)} °C`,
+          lat: number(item.avg_latency_ms),
+          jitter: number(item.jitter_ms),
+          loss: number(item.packet_loss_pct),
+          delayed: number(item.delayed_alerts),
+          qoe: number(item.qoe_score)
+        });
+      }
+    }
+
+    async function fetchJson(path) {
+      const response = await fetch(`${path}?t=${Date.now()}`, { cache: "no-store" });
+      if (!response.ok) throw new Error(`${path}: HTTP ${response.status}`);
+      return response.json();
+    }
+
+    async function loadData() {
+      const status = document.getElementById("status");
+      status.classList.remove("status-error");
+      status.textContent = "Actualizando datos…";
+      const [liveResult, simulationResult] = await Promise.allSettled([
+        fetchJson("results/cpu_qos_qoe.json"),
+        fetchJson("results/simulation_summary.json")
+      ]);
+
+      rows = [];
+      const liveData = liveResult.status === "fulfilled" ? liveResult.value : null;
+      const simulationData = simulationResult.status === "fulfilled" ? simulationResult.value : null;
+      addLiveRows(liveData);
+      addSimulationRows(simulationData);
+
+      renderKpis(liveData, simulationData && Array.isArray(simulationData.simulated_scenarios)
+        ? simulationData.simulated_scenarios : []);
+      renderComparison();
+      renderTable();
+
+      const failures = [];
+      if (liveResult.status === "rejected") failures.push("captura en vivo no disponible");
+      if (simulationResult.status === "rejected") failures.push("simulación no disponible");
+      if (!rows.length) {
+        status.classList.add("status-error");
+        status.textContent = failures.length
+          ? `No se pudieron cargar los datos (${failures.join("; ")}). Ejecuta sim_qos_qoe.py y abre el dashboard mediante un servidor local.`
+          : "Los archivos de resultados no contienen datos válidos.";
+        return;
+      }
+      status.textContent = `${failures.length ? `Aviso: ${failures.join("; ")} · ` : ""}Actualizado ${new Date().toLocaleTimeString("es-ES")}`;
+      if (failures.length) status.classList.add("status-error");
+    }
+
+    document.getElementById("refresh").addEventListener("click", loadData);
+    document.getElementById("scenario-filter").addEventListener("change", renderTable);
     loadData();
-    setInterval(loadData, 2000);
+    setInterval(loadData, 10000);
   </script>
 </body>
 </html>
