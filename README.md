@@ -19,13 +19,14 @@ mismo proceso. No se necesitan comandos de inicio adicionales.
 La captura empieza automáticamente en cada despliegue o reinicio del servicio.
 En el dashboard, escribe el mismo `CONTROL_TOKEN` para consultar su estado o
 detenerla y volverla a iniciar. La página consulta las métricas en vivo cada
-10 segundos.
+2 segundos; Render publica una muestra cada 0.5 segundos.
 
 Render configura por defecto `test.mosquitto.org` con MQTT sobre TLS (puerto
 8883), tópico `proyecto_iot/cpu/temp` y QoS 1. Para usar otro broker, cambia
-`MQTT_BROKER`, `MQTT_PORT`, `MQTT_TOPIC` y `MQTT_QOS` en las variables de entorno
-del servicio. Configura `MQTT_TLS=true` si el broker usa TLS; para brokers con
-autenticación, añade `MQTT_USERNAME` y `MQTT_PASSWORD` como variables secretas.
+`MQTT_BROKER`, `MQTT_PORT`, `MQTT_TOPIC`, `MQTT_QOS` y `MQTT_INTERVAL` en las
+variables de entorno del servicio. Configura `MQTT_TLS=true` si el broker usa
+TLS; para brokers con autenticación, añade `MQTT_USERNAME` y `MQTT_PASSWORD`
+como variables secretas.
 Guarda los cambios y vuelve a desplegar. No pongas credenciales en el dashboard.
 
 El broker público es compartido; usa un tópico propio y un broker con
@@ -66,8 +67,9 @@ arquitectura con argumentos:
 python publisher.py --broker localhost --arch local --count 20
 ```
 También se pueden configurar `MQTT_BROKER`, `MQTT_PORT`, `MQTT_TOPIC`,
-`MQTT_QOS`, `MQTT_TLS`, `MQTT_USERNAME` y `MQTT_PASSWORD` mediante variables
-de entorno. Para un broker local, deja `MQTT_TLS=false` (valor predeterminado).
+`MQTT_QOS`, `MQTT_INTERVAL`, `MQTT_TLS`, `MQTT_USERNAME` y `MQTT_PASSWORD`
+mediante variables de entorno. Para un broker local, deja `MQTT_TLS=false`
+(valor predeterminado).
 > `psutil.sensors_temperatures()` solo está disponible en Linux. En Windows, `publisher.py` estima la temperatura a partir del uso real de CPU (`psutil.cpu_percent()`).
 
 ### 3. Dashboard sin captura MQTT

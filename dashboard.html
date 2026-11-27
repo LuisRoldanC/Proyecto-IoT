@@ -519,8 +519,6 @@
         ? simulationData.simulated_scenarios : []);
       renderComparison();
       renderTable();
-      renderComparison();
-      renderTable();
       renderLiveChart(liveData);
 
       const failures = [];
@@ -543,7 +541,7 @@
     startCaptureButton.addEventListener("click", () => controlCapture("start"));
     stopCaptureButton.addEventListener("click", () => controlCapture("stop"));
     loadData();
-    setInterval(loadData, 10000);
+    setInterval(loadData, 2000);
     setInterval(refreshCaptureStatus, 10000);
   </script>
 </body>

@@ -1,5 +1,6 @@
 import argparse
 import json
+import math
 import os
 import random
 import time
@@ -10,16 +11,19 @@ from mqtt_config import configure_client
 
 
 def read_cpu_temp_c() -> float:
-    """Lee la temperatura real si el SO la expone, si no, se estima según uso de CPU"""
+    """Lee una temperatura válida o la estima a partir del uso de CPU."""
     if hasattr(psutil, "sensors_temperatures"):
         try:
             temps = psutil.sensors_temperatures()
             for entries in (temps or {}).values():
-                if entries and entries[0].current is not None:
-                    return round(float(entries[0].current), 2)
-        except Exception:
+                for entry in entries:
+                    if entry.current is None:
+                        continue
+                    temperature = float(entry.current)
+                    if math.isfinite(temperature) and 0 <= temperature <= 150:
+                        return round(temperature, 2)
+        except (NotImplementedError, OSError, RuntimeError, TypeError, ValueError):
             pass
-    # para Windows estima temperatura con base en el uso real de CPU
     cpu_pct = psutil.cpu_percent(interval=None)
     return round(45.0 + (cpu_pct * 0.45) + random.uniform(-1.5, 1.5), 2)
 

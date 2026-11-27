@@ -41,9 +41,13 @@ def read_cpu_temp_c() -> float:
         try:
             temperatures = psutil.sensors_temperatures()
             for entries in (temperatures or {}).values():
-                if entries and entries[0].current is not None:
-                    return round(float(entries[0].current), 2)
-        except (OSError, RuntimeError):
+                for entry in entries:
+                    if entry.current is None:
+                        continue
+                    temperature = float(entry.current)
+                    if math.isfinite(temperature) and 0 <= temperature <= 150:
+                        return round(temperature, 2)
+        except (NotImplementedError, OSError, RuntimeError, TypeError, ValueError):
             pass
     cpu_pct = psutil.cpu_percent(interval=None)
     return round(45.0 + cpu_pct * 0.45 + random.uniform(-1.5, 1.5), 2)
@@ -63,7 +67,7 @@ class CaptureManager:
         self.port = int(os.environ.get("MQTT_PORT", "1883"))
         self.topic = os.environ.get("MQTT_TOPIC", "proyecto_iot/cpu/temp")
         self.qos = int(os.environ.get("MQTT_QOS", "1"))
-        self.interval = float(os.environ.get("MQTT_INTERVAL", "1.0"))
+        self.interval = float(os.environ.get("MQTT_INTERVAL", "0.5"))
         self.arch = os.environ.get("MQTT_ARCH", "cloud")
 
     def _status_locked(self) -> dict[str, bool]:
@@ -136,7 +140,11 @@ class CaptureManager:
             sent_ts_ms = float(data["sent_ts_ms"])
             if arch not in {"local", "cloud"} or seq < 1:
                 raise ValueError("arquitectura o secuencia inválida")
-            if not math.isfinite(temp_c) or not math.isfinite(sent_ts_ms):
+            if (
+                not math.isfinite(temp_c)
+                or not math.isfinite(sent_ts_ms)
+                or not 0 <= temp_c <= 150
+            ):
                 raise ValueError("temperatura o marca de tiempo no válida")
         except (UnicodeDecodeError, json.JSONDecodeError, ValueError, KeyError, TypeError) as error:
             print(f"Mensaje MQTT ignorado ({error})", flush=True)
