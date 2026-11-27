@@ -1,9 +1,12 @@
 import argparse
 import json
+import os
 import random
 import time
 import psutil
 import paho.mqtt.client as mqtt
+
+from mqtt_config import configure_client
 
 
 def read_cpu_temp_c() -> float:
@@ -23,16 +26,17 @@ def read_cpu_temp_c() -> float:
 
 def main():
     parser = argparse.ArgumentParser(description="Publicador MQTT de temperatura de CPU")
-    parser.add_argument("--broker", default="test.mosquitto.org", help="Host del broker MQTT")
-    parser.add_argument("--port", type=int, default=1883, help="Puerto MQTT")
-    parser.add_argument("--topic", default="proyecto_iot/cpu/temp", help="Tópico MQTT") # Tópico para publicar la temperatura de la CPU
-    parser.add_argument("--arch", choices=["local", "cloud"], default="cloud", help="Arquitectura a etiquetar")
-    parser.add_argument("--interval", type=float, default=1.0, help="Segundos entre envíos")
+    parser.add_argument("--broker", default=os.environ.get("MQTT_BROKER", "test.mosquitto.org"), help="Host del broker MQTT")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("MQTT_PORT", "1883")), help="Puerto MQTT")
+    parser.add_argument("--topic", default=os.environ.get("MQTT_TOPIC", "proyecto_iot/cpu/temp"), help="Tópico MQTT")
+    parser.add_argument("--arch", choices=["local", "cloud"], default=os.environ.get("MQTT_ARCH", "cloud"), help="Arquitectura a etiquetar")
+    parser.add_argument("--interval", type=float, default=float(os.environ.get("MQTT_INTERVAL", "1.0")), help="Segundos entre envíos")
     parser.add_argument("--count", type=int, default=30, help="Número de mensajes a enviar (0 = infinito)")
-    parser.add_argument("--qos", type=int, choices=[0, 1, 2], default=1, help="Nivel QoS de MQTT")
+    parser.add_argument("--qos", type=int, choices=[0, 1, 2], default=int(os.environ.get("MQTT_QOS", "1")), help="Nivel QoS de MQTT")
     args = parser.parse_args()
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    configure_client(client)
     client.connect(args.broker, args.port, keepalive=60)
     client.loop_start()
 

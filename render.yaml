@@ -7,3 +7,13 @@ services:
     envVars:
       - key: CONTROL_TOKEN
         sync: false
+      - key: MQTT_BROKER
+        value: test.mosquitto.org
+      - key: MQTT_PORT
+        value: "8883"
+      - key: MQTT_TOPIC
+        value: proyecto_iot/cpu/temp
+      - key: MQTT_QOS
+        value: "1"
+      - key: MQTT_TLS
+        value: "true"

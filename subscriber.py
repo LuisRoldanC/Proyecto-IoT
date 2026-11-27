@@ -6,6 +6,7 @@ import time
 from datetime import datetime
 import paho.mqtt.client as mqtt
 
+from mqtt_config import configure_client
 from sim_qos_qoe import RESULTS_DIR, REAL_STATS_FILE, compute_qoe
 
 
@@ -53,14 +54,15 @@ def save_stats(state: dict, output_path: str) -> None:
 
 def main():
     parser = argparse.ArgumentParser(description="Suscriptor MQTT para métricas QoS/QoE en vivo")
-    parser.add_argument("--broker", default="test.mosquitto.org", help="Host del broker MQTT")
-    parser.add_argument("--port", type=int, default=1883, help="Puerto MQTT")
-    parser.add_argument("--topic", default="proyecto_iot/cpu/temp", help="Tópico MQTT")
-    parser.add_argument("--qos", type=int, choices=[0, 1, 2], default=1, help="Nivel QoS de MQTT")
+    parser.add_argument("--broker", default=os.environ.get("MQTT_BROKER", "test.mosquitto.org"), help="Host del broker MQTT")
+    parser.add_argument("--port", type=int, default=int(os.environ.get("MQTT_PORT", "1883")), help="Puerto MQTT")
+    parser.add_argument("--topic", default=os.environ.get("MQTT_TOPIC", "proyecto_iot/cpu/temp"), help="Tópico MQTT")
+    parser.add_argument("--qos", type=int, choices=[0, 1, 2], default=int(os.environ.get("MQTT_QOS", "1")), help="Nivel QoS de MQTT")
     args = parser.parse_args()
 
     os.makedirs(RESULTS_DIR, exist_ok=True)
     state: dict[str, dict] = {}
+    save_stats(state, REAL_STATS_FILE)
 
     def on_connect(client, userdata, flags, reason_code, properties):
         print(f"Conectado a {args.broker}:{args.port} (código: {reason_code})")
@@ -102,6 +104,7 @@ def main():
         print(f"[{arch} #{seq}] {temp_c:.2f} °C | latencia: {latency_ms:.1f} ms")
 
     client = mqtt.Client(mqtt.CallbackAPIVersion.VERSION2)
+    configure_client(client)
     client.on_connect = on_connect
     client.on_message = on_message
     client.connect(args.broker, args.port, keepalive=60)

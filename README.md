@@ -20,9 +20,16 @@ En el dashboard, escribe el mismo `CONTROL_TOKEN` y usa **Iniciar captura** o
 `publisher.py`; el publicador permanece activo hasta detenerlo. La página consulta
 las métricas en vivo cada 10 segundos.
 
-El sistema usa el broker MQTT público configurado por defecto en ambos scripts.
-Si Render reinicia el servicio, vuelve a abrir el dashboard e inicia la captura
-otra vez cuando la necesites.
+Render configura por defecto `test.mosquitto.org` con MQTT sobre TLS (puerto
+8883), tópico `proyecto_iot/cpu/temp` y QoS 1. Para usar otro broker, cambia
+`MQTT_BROKER`, `MQTT_PORT`, `MQTT_TOPIC` y `MQTT_QOS` en las variables de entorno
+del servicio. Configura `MQTT_TLS=true` si el broker usa TLS; para brokers con
+autenticación, añade `MQTT_USERNAME` y `MQTT_PASSWORD` como variables secretas.
+Guarda los cambios y vuelve a desplegar. No pongas credenciales en el dashboard.
+
+El broker público es compartido; usa un tópico propio y un broker con
+autenticación para datos privados. Si Render reinicia el servicio, vuelve a abrir
+el dashboard e inicia la captura otra vez cuando la necesites.
 
 ## Requisitos
 - Python 3.10 o superior
@@ -48,10 +55,15 @@ python subscriber.py
 # Terminal 2: publicador (envía lecturas de temperatura por MQTT)
 python publisher.py --count 20
 ```
-Por defecto se conectan al broker público `test.mosquitto.org` (etiquetado como `cloud`). Se puede cambiar broker, tópico o arquitectura con argumentos:
+Por defecto se conectan al broker público `test.mosquitto.org` por el puerto
+1883 (sin TLS), etiquetado como `cloud`. Se puede cambiar broker, tópico o
+arquitectura con argumentos:
 ```bash
 python publisher.py --broker localhost --arch local --count 20
 ```
+También se pueden configurar `MQTT_BROKER`, `MQTT_PORT`, `MQTT_TOPIC`,
+`MQTT_QOS`, `MQTT_TLS`, `MQTT_USERNAME` y `MQTT_PASSWORD` mediante variables
+de entorno. Para un broker local, deja `MQTT_TLS=false` (valor predeterminado).
 > `psutil.sensors_temperatures()` solo está disponible en Linux. En Windows, `publisher.py` estima la temperatura a partir del uso real de CPU (`psutil.cpu_percent()`).
 
 ### 3. Dashboard web
