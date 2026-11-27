@@ -2,3 +2,5 @@ __pycache__/
 *.pyc
 results/cpu_qos_qoe.json
 results/*.tmp
+public/results/cpu_qos_qoe.json
+public/results/*.tmp

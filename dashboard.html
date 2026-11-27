@@ -486,7 +486,7 @@
     async function controlCapture(action) {
       startCaptureButton.disabled = true;
       stopCaptureButton.disabled = true;
-      captureStatus.textContent = action === "start" ? "Iniciando procesos…" : "Deteniendo procesos…";
+      captureStatus.textContent = action === "start" ? "Iniciando clientes MQTT…" : "Deteniendo clientes MQTT…";
       try {
         const state = await requestCapture(`/api/${action}`, "POST");
         showCaptureStatus(state);
