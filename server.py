@@ -1,12 +1,16 @@
 import hmac
 import json
 import os
+import secrets
 import subprocess
 import sys
 import threading
+from datetime import datetime, timezone
 from http.server import SimpleHTTPRequestHandler, ThreadingHTTPServer
 from pathlib import Path
 from urllib.parse import urlsplit
+
+from sim_qos_qoe import simulate_scenario
 
 
 ROOT = Path(__file__).resolve().parent
@@ -127,6 +131,20 @@ class DashboardHandler(SimpleHTTPRequestHandler):
             self.send_response(302)
             self.send_header("Location", "/dashboard.html")
             self.end_headers()
+            return
+        if path == "/api/simulation":
+            seed = secrets.randbits(64)
+            scenarios = ("normal", "estres_cpu", "congestion_red")
+            architectures = ("local", "cloud")
+            simulated_scenarios = [
+                simulate_scenario(arch, scenario, seed=seed)
+                for scenario in scenarios
+                for arch in architectures
+            ]
+            self._send_json(200, {
+                "generated_at_utc": datetime.now(timezone.utc).isoformat(),
+                "simulated_scenarios": simulated_scenarios,
+            })
             return
         if path == "/api/status":
             if self._authorized():

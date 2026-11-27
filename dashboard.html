@@ -506,7 +506,7 @@
       status.textContent = "Actualizando datos…";
       const [liveResult, simulationResult] = await Promise.allSettled([
         fetchJson("results/cpu_qos_qoe.json"),
-        fetchJson("results/simulation_summary.json")
+        fetchJson("/api/simulation")
       ]);
 
       rows = [];
