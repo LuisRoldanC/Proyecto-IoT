@@ -8,6 +8,19 @@ Dashboard para comparar temperatura y calidad de servicio entre procesamiento lo
 
 ![Comparación QoE y resultados por escenario](dashboard_img2.png)
 
+## Publicar en Render
+
+El dashboard se publica como un sitio estático. Render ejecuta `render_build.py`,
+que genera los resultados simulados y prepara los archivos del dashboard; no hay
+que agregar varios `.py` como comandos de inicio.
+
+1. En Render, selecciona **New > Blueprint** y conecta este repositorio.
+2. Render detectará `render.yaml`; confirma la creación del servicio.
+
+La compilación ejecuta solo la simulación. `publisher.py` y `subscriber.py` son
+opcionales para captura MQTT en vivo y no es necesario dejarlos ejecutándose para
+mostrar el dashboard.
+
 ## Requisitos
 - Python 3.10 o superior
 - Dependencias en `requirements.txt` (`psutil`, `paho-mqtt`):

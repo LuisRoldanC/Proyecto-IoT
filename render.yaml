@@ -1,0 +1,6 @@
+services:
+  - type: web
+    name: proyecto-iot-dashboard
+    runtime: static
+    buildCommand: python render_build.py
+    staticPublishPath: public
