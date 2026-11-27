@@ -31,9 +31,8 @@ El broker público es compartido; usa un tópico propio y un broker con
 autenticación para datos privados. Si Render reinicia el servicio, vuelve a abrir
 el dashboard e inicia la captura otra vez cuando la necesites.
 
-Los escenarios simulados se regeneran con nuevos valores al actualizar el
-dashboard y automáticamente cada 10 segundos. La captura MQTT en vivo se
-actualiza por separado cuando llegan mensajes del broker.
+Los escenarios simulados se regeneran cada segundo y también al actualizar el
+dashboard. La captura MQTT en vivo se actualiza al recibir mensajes del broker.
 
 ## Requisitos
 - Python 3.10 o superior
