@@ -33,6 +33,9 @@ El broker público es compartido; usa un tópico propio y un broker con
 autenticación para datos privados. Si Render reinicia el servicio, la captura
 MQTT se inicia automáticamente.
 
+Los escenarios simulados se regeneran cada segundo y también al actualizar el
+dashboard. La captura MQTT en vivo se actualiza al recibir mensajes del broker.
+
 ## Requisitos
 - Python 3.10 o superior
 - Dependencias en `requirements.txt` (`psutil`, `paho-mqtt`):
