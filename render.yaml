@@ -15,5 +15,7 @@ services:
         value: proyecto_iot/cpu/temp
       - key: MQTT_QOS
         value: "1"
+      - key: MQTT_INTERVAL
+        value: "0.5"
       - key: MQTT_TLS
         value: "true"

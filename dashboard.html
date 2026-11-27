@@ -486,7 +486,7 @@
     async function controlCapture(action) {
       startCaptureButton.disabled = true;
       stopCaptureButton.disabled = true;
-      captureStatus.textContent = action === "start" ? "Iniciando procesos…" : "Deteniendo procesos…";
+      captureStatus.textContent = action === "start" ? "Iniciando clientes MQTT…" : "Deteniendo clientes MQTT…";
       try {
         const state = await requestCapture(`/api/${action}`, "POST");
         showCaptureStatus(state);
@@ -506,7 +506,7 @@
       status.textContent = "Actualizando datos…";
       const [liveResult, simulationResult] = await Promise.allSettled([
         fetchJson("results/cpu_qos_qoe.json"),
-        fetchJson("/api/simulation")
+        fetchJson("results/simulation_summary.json")
       ]);
 
       rows = [];
@@ -517,8 +517,6 @@
 
       renderKpis(liveData, simulationData && Array.isArray(simulationData.simulated_scenarios)
         ? simulationData.simulated_scenarios : []);
-      renderComparison();
-      renderTable();
       renderComparison();
       renderTable();
       renderLiveChart(liveData);
@@ -543,7 +541,7 @@
     startCaptureButton.addEventListener("click", () => controlCapture("start"));
     stopCaptureButton.addEventListener("click", () => controlCapture("stop"));
     loadData();
-    setInterval(loadData, 1000);
+    setInterval(loadData, 2000);
     setInterval(refreshCaptureStatus, 10000);
   </script>
 </body>
