@@ -10,16 +10,19 @@ Dashboard para comparar temperatura y calidad de servicio entre procesamiento lo
 
 ## Publicar en Render
 
-El dashboard se publica como un sitio estático. Render ejecuta `render_build.py`,
-que genera los resultados simulados y prepara los archivos del dashboard; no hay
-que agregar varios `.py` como comandos de inicio.
+Para controlar MQTT desde el dashboard, despliega como **Web Service** mediante
+**New > Blueprint**. Render detectará `render.yaml`; durante la configuración
+define un valor secreto para `CONTROL_TOKEN`. El servicio ejecuta `server.py` y
+Render inicia la compilación con `render_build.py`.
 
-1. En Render, selecciona **New > Blueprint** y conecta este repositorio.
-2. Render detectará `render.yaml`; confirma la creación del servicio.
+En el dashboard, escribe el mismo `CONTROL_TOKEN` y usa **Iniciar captura** o
+**Detener captura**. El botón inicia o detiene juntos `subscriber.py` y
+`publisher.py`; el publicador permanece activo hasta detenerlo. La página consulta
+las métricas en vivo cada 10 segundos.
 
-La compilación ejecuta solo la simulación. `publisher.py` y `subscriber.py` son
-opcionales para captura MQTT en vivo y no es necesario dejarlos ejecutándose para
-mostrar el dashboard.
+El sistema usa el broker MQTT público configurado por defecto en ambos scripts.
+Si Render reinicia el servicio, vuelve a abrir el dashboard e inicia la captura
+otra vez cuando la necesites.
 
 ## Requisitos
 - Python 3.10 o superior

@@ -1,0 +1,7 @@
+architecture,scenario,samples,avg_cpu_temp_c,max_cpu_temp_c,avg_latency_ms,jitter_ms,packet_loss_pct,delayed_alerts,qoe_score
+local,normal,60,53.94,65.77,12.64,2.72,0.0,0,97.8
+cloud,normal,60,53.86,64.27,112.94,23.37,1.67,0,76.44
+local,estres_cpu,60,90.47,101.96,17.42,4.87,0.0,0,96.69
+cloud,estres_cpu,60,91.27,101.26,168.2,41.04,3.33,33,0.0
+local,congestion_red,60,70.46,83.64,23.61,7.67,0.0,0,95.25
+cloud,congestion_red,60,70.67,83.52,281.21,73.37,3.33,0,39.58

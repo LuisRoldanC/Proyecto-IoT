@@ -1,0 +1,78 @@
+{
+  "generated_at_utc": "2026-11-27T01:18:07.175738+00:00",
+  "simulated_scenarios": [
+    {
+      "architecture": "local",
+      "scenario": "normal",
+      "samples": 60,
+      "avg_cpu_temp_c": 53.94,
+      "max_cpu_temp_c": 65.77,
+      "avg_latency_ms": 12.64,
+      "jitter_ms": 2.72,
+      "packet_loss_pct": 0.0,
+      "delayed_alerts": 0,
+      "qoe_score": 97.8
+    },
+    {
+      "architecture": "cloud",
+      "scenario": "normal",
+      "samples": 60,
+      "avg_cpu_temp_c": 53.86,
+      "max_cpu_temp_c": 64.27,
+      "avg_latency_ms": 112.94,
+      "jitter_ms": 23.37,
+      "packet_loss_pct": 1.67,
+      "delayed_alerts": 0,
+      "qoe_score": 76.44
+    },
+    {
+      "architecture": "local",
+      "scenario": "estres_cpu",
+      "samples": 60,
+      "avg_cpu_temp_c": 90.47,
+      "max_cpu_temp_c": 101.96,
+      "avg_latency_ms": 17.42,
+      "jitter_ms": 4.87,
+      "packet_loss_pct": 0.0,
+      "delayed_alerts": 0,
+      "qoe_score": 96.69
+    },
+    {
+      "architecture": "cloud",
+      "scenario": "estres_cpu",
+      "samples": 60,
+      "avg_cpu_temp_c": 91.27,
+      "max_cpu_temp_c": 101.26,
+      "avg_latency_ms": 168.2,
+      "jitter_ms": 41.04,
+      "packet_loss_pct": 3.33,
+      "delayed_alerts": 33,
+      "qoe_score": 0.0
+    },
+    {
+      "architecture": "local",
+      "scenario": "congestion_red",
+      "samples": 60,
+      "avg_cpu_temp_c": 70.46,
+      "max_cpu_temp_c": 83.64,
+      "avg_latency_ms": 23.61,
+      "jitter_ms": 7.67,
+      "packet_loss_pct": 0.0,
+      "delayed_alerts": 0,
+      "qoe_score": 95.25
+    },
+    {
+      "architecture": "cloud",
+      "scenario": "congestion_red",
+      "samples": 60,
+      "avg_cpu_temp_c": 70.67,
+      "max_cpu_temp_c": 83.52,
+      "avg_latency_ms": 281.21,
+      "jitter_ms": 73.37,
+      "packet_loss_pct": 3.33,
+      "delayed_alerts": 0,
+      "qoe_score": 39.58
+    }
+  ],
+  "live_capture": null
+}

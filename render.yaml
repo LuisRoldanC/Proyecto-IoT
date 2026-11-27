@@ -1,6 +1,9 @@
 services:
   - type: web
     name: proyecto-iot-dashboard
-    runtime: static
-    buildCommand: python render_build.py
-    staticPublishPath: public
+    runtime: python
+    buildCommand: pip install -r requirements.txt && python render_build.py
+    startCommand: python server.py
+    envVars:
+      - key: CONTROL_TOKEN
+        sync: false

@@ -81,6 +81,11 @@
     .chart-meta { display: flex; justify-content: space-between; margin-top: 8px; color: var(--muted); font-size: .75rem; }
     .status-line { justify-content: flex-start; margin: 17px 2px 0; color: var(--muted); font-size: .77rem; }
     .status-error { color: var(--amber); }
+    .capture-controls { display: flex; align-items: flex-end; justify-content: space-between; gap: 16px; }
+    .control-token { display: grid; flex: 1; gap: 7px; color: var(--muted); font-size: .78rem; }
+    .control-token input { width: 100%; max-width: 420px; border: 1px solid #d2deeb; border-radius: 7px; padding: 9px 10px; color: var(--text); }
+    .capture-actions { display: flex; gap: 9px; }
+    .capture-actions button:disabled { cursor: not-allowed; opacity: .55; }
     .empty { padding: 28px 14px; color: var(--muted); text-align: center; font-size: .85rem; }
     footer { margin-top: 23px; color: #718198; font-size: .74rem; }
     footer code { border: 1px solid #dce5ef; border-radius: 4px; background: #fff; color: #405a78; padding: 2px 5px; }
@@ -99,6 +104,9 @@
       .panel { padding: 16px; }
       .toolbar { justify-content: flex-start; }
       .status-line { align-items: flex-start; }
+      .capture-controls { align-items: stretch; flex-direction: column; }
+      .control-token input { max-width: none; }
+      .capture-actions button { flex: 1; justify-content: center; }
     }
     @media (prefers-reduced-motion: reduce) {
       *, *::before, *::after { scroll-behavior: auto !important; transition-duration: .01ms !important; }
@@ -178,7 +186,30 @@
         </div>
       </section>
     </div>
-        <section class="panel chart-panel" aria-labelledby="live-chart-title">
+
+    <section class="panel" aria-labelledby="capture-controls-title">
+      <div class="section-heading">
+        <div>
+          <h2 id="capture-controls-title">Captura MQTT</h2>
+          <p class="section-caption">Inicia o detén juntos el publicador y el suscriptor.</p>
+        </div>
+        <span class="pill" id="capture-state">Sin verificar</span>
+      </div>
+      <div class="capture-controls">
+        <label class="control-token" for="control-token">Token de control configurado en Render
+          <input id="control-token" type="password" autocomplete="off" placeholder="CONTROL_TOKEN" />
+        </label>
+        <div class="capture-actions">
+          <button class="refresh-button" id="start-capture" type="button">Iniciar captura</button>
+          <button class="refresh-button" id="stop-capture" type="button">Detener captura</button>
+        </div>
+      </div>
+      <div class="status-line" id="capture-status" role="status" aria-live="polite">
+        Ingresa el token para consultar o controlar la captura.
+      </div>
+    </section>
+
+    <section class="panel chart-panel" aria-labelledby="live-chart-title">
       <div class="section-heading">
         <div>
           <h2 id="live-chart-title">Historial térmico en vivo (MQTT)</h2>
@@ -188,7 +219,7 @@
       </div>
       <div id="live-chart"></div>
     </section>
-    <footer>Los datos simulados son reproducibles y se actualizan al ejecutar <code>sim_qos_qoe.py</code>.</footer>
+    <footer>Los datos simulados son reproducibles; la captura MQTT se puede iniciar y detener desde esta página.</footer>
   </main>
 
   <script>
@@ -410,6 +441,65 @@
       return response.json();
     }
 
+    const controlTokenInput = document.getElementById("control-token");
+    const captureStatus = document.getElementById("capture-status");
+    const captureState = document.getElementById("capture-state");
+    const startCaptureButton = document.getElementById("start-capture");
+    const stopCaptureButton = document.getElementById("stop-capture");
+
+    async function requestCapture(path, method = "GET") {
+      const token = controlTokenInput.value.trim();
+      if (!token) throw new Error("Ingresa el token de control configurado en Render.");
+      const response = await fetch(path, {
+        method,
+        headers: { Authorization: `Bearer ${token}` },
+        cache: "no-store"
+      });
+      const result = await response.json();
+      if (!response.ok) throw new Error(result.error || `HTTP ${response.status}`);
+      return result;
+    }
+
+    function showCaptureStatus(state) {
+      const publisherRunning = Boolean(state.publisher);
+      const subscriberRunning = Boolean(state.subscriber);
+      captureState.textContent = publisherRunning && subscriberRunning
+        ? "En ejecución"
+        : publisherRunning || subscriberRunning ? "Parcial" : "Detenida";
+      captureStatus.textContent = `Publicador: ${publisherRunning ? "activo" : "detenido"} · Suscriptor: ${subscriberRunning ? "activo" : "detenido"}`;
+    }
+
+    async function refreshCaptureStatus() {
+      if (!controlTokenInput.value.trim()) {
+        captureState.textContent = "Sin verificar";
+        captureStatus.textContent = "Ingresa el token para consultar o controlar la captura.";
+        return;
+      }
+      try {
+        showCaptureStatus(await requestCapture("/api/status"));
+      } catch (error) {
+        captureState.textContent = "No disponible";
+        captureStatus.textContent = `No se pudo consultar la captura: ${error.message}`;
+      }
+    }
+
+    async function controlCapture(action) {
+      startCaptureButton.disabled = true;
+      stopCaptureButton.disabled = true;
+      captureStatus.textContent = action === "start" ? "Iniciando procesos…" : "Deteniendo procesos…";
+      try {
+        const state = await requestCapture(`/api/${action}`, "POST");
+        showCaptureStatus(state);
+        await loadData();
+      } catch (error) {
+        captureState.textContent = "Error";
+        captureStatus.textContent = `No se pudo controlar la captura: ${error.message}`;
+      } finally {
+        startCaptureButton.disabled = false;
+        stopCaptureButton.disabled = false;
+      }
+    }
+
     async function loadData() {
       const status = document.getElementById("status");
       status.classList.remove("status-error");
@@ -449,8 +539,12 @@
 
     document.getElementById("refresh").addEventListener("click", loadData);
     document.getElementById("scenario-filter").addEventListener("change", renderTable);
+    controlTokenInput.addEventListener("change", refreshCaptureStatus);
+    startCaptureButton.addEventListener("click", () => controlCapture("start"));
+    stopCaptureButton.addEventListener("click", () => controlCapture("stop"));
     loadData();
     setInterval(loadData, 10000);
+    setInterval(refreshCaptureStatus, 10000);
   </script>
 </body>
 </html>
