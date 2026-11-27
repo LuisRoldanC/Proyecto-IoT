@@ -122,7 +122,13 @@ class DashboardHandler(SimpleHTTPRequestHandler):
         return True
 
     def do_GET(self) -> None:
-        if urlsplit(self.path).path == "/api/status":
+        path = urlsplit(self.path).path
+        if path == "/":
+            self.send_response(302)
+            self.send_header("Location", "/dashboard.html")
+            self.end_headers()
+            return
+        if path == "/api/status":
             if self._authorized():
                 self._send_json(200, CAPTURE_MANAGER.status())
             return
